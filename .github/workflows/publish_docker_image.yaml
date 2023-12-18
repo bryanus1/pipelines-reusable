@@ -1,0 +1,51 @@
+name: Publish Docker image ECR
+
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        required: true
+        type: string
+      aws-region:
+        required: true
+        type: string
+    secrets:
+      aws-account-id:
+        required: true
+      aws-access-key-id:
+        required: true
+      aws-secret-access-key:
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Build Docker image
+        run: docker build -t ${{ inputs.image-name }}:latest .
+
+  publish:
+    runs-on: ubuntu-latest
+
+    needs: build
+
+    steps:
+      - name: Configure AWS CLI
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.aws-access-key-id }}
+          aws-secret-access-key: ${{ secrets.aws-secret-access-key }}
+          aws-region: ${{ inputs.aws-region }}
+
+      - name: Login on ECR
+        run: aws ecr get-login-password --region ${{ inputs.aws-region }} | docker login --username AWS --passoword-stdin ${{ secrets.aws-account-id }}.dkr.ecr.${{ inputs.aws-region }}.amazonaws.com
+
+      - name: Tag Docker image
+        run: docker tag ${{ inputs.image-name }}:latest ${{ secrets.aws-account-id }}.dkr.ecr.${{ inputs.aws-region }}.amazonaws.com/${{ inputs.image-name }}:latest
+
+      - name: Publish image to ECR
+        run: docker push ${{ secrets.aws-account-id }}.dkr.ecr.${{ inputs.aws-region }}.amazonaws.com/${{ inputs.image-name }}:latest
