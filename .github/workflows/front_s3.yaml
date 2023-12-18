@@ -1,0 +1,29 @@
+name: Front S3 Workflow Reusable
+
+on:
+  workflow_call:
+    inputs:
+      bucket_name:
+        required: true
+        type: string
+    secrets:
+      aws-access-key-id:
+        required: true
+      aws-secret-access-key:
+        required: true        
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup AWS CLI
+        uses: aws-actions/configure-aws-credentials@v1secrets
+        with:
+          aws-access-key-id: ${{ secrets.aws-access-key-id }}
+          aws-secret-access-key: ${{ secrets.aws-secret-access-key }}
+          aws-region: us-east-1
+      - name: Sync files to S3 bucket
+        run: |
+          aws s3 sync build s3://{{ inputs.bucket_name }} --delete
